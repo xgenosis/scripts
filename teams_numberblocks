@@ -1,0 +1,143 @@
+<#
+.SYNOPSIS
+    Export clean sequential blocks of unassigned Teams numbers to CSV.
+
+.DESCRIPTION
+    - Pulls all unassigned numbers from Microsoft Teams using Get-CsOnlineTelephoneNumber -IsNotAssigned
+      (Microsoft Teams PowerShell module, current syntax as of 03 Nov 2025). :contentReference[oaicite:1]{index=1}
+    - Detects contiguous runs of unassigned numbers.
+    - Keeps only runs whose size is a "nice block" of 10/20/30/40/50/60/70/80/90.
+    - Writes those ranges to a CSV.
+
+.NOTES
+    You must be connected to Microsoft Teams PowerShell with sufficient permissions to read number inventory.
+    Example:
+        Connect-MicrosoftTeams
+#>
+
+# --------------------------
+# Config
+# --------------------------
+
+# Where do you want the CSV?
+$OutputCsv = "C:\Temp\Unassigned_Number_Blocks.csv"
+
+# Valid block sizes we care about
+$ValidBlockSizes = 10,20,30,40,50,60,70,80,90
+
+# --------------------------
+# 1. Get all unassigned numbers from Teams
+# --------------------------
+# This returns all numbers in your tenant that are currently NOT assigned. :contentReference[oaicite:2]{index=2}
+$rawNumbers = Get-CsOnlineTelephoneNumber -IsNotAssigned -ResultSize 2147483647 |
+    Select-Object -ExpandProperty TelephoneNumber
+
+# Safety check: remove null/blank
+$rawNumbers = $rawNumbers | Where-Object { $_ -and $_.Trim() -ne "" }
+
+# --------------------------
+# 2. Normalise numbers to numeric so we can detect sequences
+#    Assumes numbers are in E.164 format like '+61293771123'
+# --------------------------
+$numbers = $rawNumbers | ForEach-Object {
+    $_ -replace '[^\d]'  # strip + and any non-digits, leave just digits
+} | ForEach-Object {
+    # cast to [int64] so we keep full length of AU numbers
+    [int64]$_
+}
+
+# Deduplicate, sort ascending
+$numbers = $numbers | Sort-Object -Unique
+
+# --------------------------
+# 3. Walk the sorted list and build contiguous runs
+#    A "run" = one or more numbers where each next number = prev + 1
+# --------------------------
+
+$ranges = @()
+if ($numbers.Count -gt 0) {
+    $runStart = $numbers[0]
+    $runPrev  = $numbers[0]
+
+    for ($i = 1; $i -lt $numbers.Count; $i++) {
+        $current = $numbers[$i]
+
+        if ($current -eq ($runPrev + 1)) {
+            # still contiguous
+            $runPrev = $current
+            continue
+        }
+        else {
+            # break in sequence -> close the previous run
+            $ranges += [pscustomobject]@{
+                StartNumber = $runStart
+                EndNumber   = $runPrev
+                Count       = ($runPrev - $runStart + 1)
+            }
+
+            # start a new run
+            $runStart = $current
+            $runPrev  = $current
+        }
+    }
+
+    # close the final run
+    $ranges += [pscustomobject]@{
+        StartNumber = $runStart
+        EndNumber   = $runPrev
+        Count       = ($runPrev - $runStart + 1)
+    }
+}
+
+# --------------------------
+# 4. Filter runs to only keep "nice" block sizes
+#    i.e. 10/20/30/.../90 exactly
+# --------------------------
+$niceBlocks = $ranges | Where-Object {
+    $ValidBlockSizes -contains $_.Count
+}
+
+# OPTIONAL extra tightening:
+# If you ALSO only want blocks that sit neatly inside a /100 range
+# e.g. 61293771100-199, or a 10-number slice fully inside that hundred,
+# uncomment this section.
+
+# $niceBlocks = $niceBlocks | Where-Object {
+#     # same first (length-2) digits except the last two digits vary
+#     # i.e. StartNumber and EndNumber share the same "hundreds" prefix
+#     $startStr = $_.StartNumber.ToString()
+#     $endStr   = $_.EndNumber.ToString()
+#
+#     # compare everything except the last two digits
+#     $startPrefix = $startStr.Substring(0, $startStr.Length - 2)
+#     $endPrefix   = $endStr.Substring(0, $endStr.Length - 2)
+#
+#     $startPrefix -eq $endPrefix
+# }
+
+# --------------------------
+# 5. Add pretty formatting back to +E.164 for the CSV
+# --------------------------
+$exportRows = $niceBlocks | ForEach-Object {
+    $startDigits = $_.StartNumber.ToString()
+    $endDigits   = $_.EndNumber.ToString()
+
+    # Assume country code is the leading part of the number that starts with '61' for AU.
+    # If you have multiple country codes, you can improve this by parsing based on your known country code lengths.
+    $StartE164 = "+" + $startDigits
+    $EndE164   = "+" + $endDigits
+
+    [pscustomobject]@{
+        StartNumberE164 = $StartE164
+        EndNumberE164   = $EndE164
+        BlockSize       = $_.Count
+        RangeSummary    = "$StartE164 - $EndE164"
+    }
+}
+
+# --------------------------
+# 6. Export to CSV
+# --------------------------
+$exportRows | Export-Csv -NoTypeInformation -Encoding UTF8 -Path $OutputCsv
+
+Write-Host "Done. Exported $($exportRows.Count) sequential unassigned blocks to $OutputCsv"
