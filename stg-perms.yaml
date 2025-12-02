@@ -1,0 +1,54 @@
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  groupId: 'GROUPID'  # <-- AAD Group Object ID
+  roles: 'Storage Blob Data Contributor,Reader'     # <-- Comma-separated role names
+  subscriptionId: 'SUB'
+  resourceGroup: 'RG'
+  storageAccountName: 'STGNAME'
+
+stages:
+- stage: AssignRoles
+  displayName: Assign Azure Roles to Group
+  jobs:
+  - job: RoleAssignment
+    displayName: Assign Roles
+    steps:
+
+    - task: AzurePowerShell@5
+      name: AssignAzureRoles
+      inputs:
+        azureSubscription: 'CONNECTOR' # <-- Azure DevOps Service Connection Name
+        ScriptType: 'InlineScript'
+        Inline: |
+          $ErrorActionPreference = "Stop"
+
+          # Parse roles
+          $roles = "$(roles)".Split(',') | ForEach-Object { $_.Trim() }
+
+          # Prepare scope
+          $scope = "/subscriptions/$(subscriptionId)/resourceGroups/$(resourceGroup)/providers/Microsoft.Storage/storageAccounts/$(storageAccountName)"
+
+          foreach ($roleName in $roles) {
+              Write-Host "`n🔍 Assigning role '$roleName' to group '$(groupId)' at scope '$scope'..."
+
+              $role = Get-AzRoleDefinition -Name $roleName
+              if (-not $role) {
+                  Write-Warning "⚠️ Role '$roleName' not found. Skipping..."
+                  continue
+              }
+
+              try {
+                  New-AzRoleAssignment -ObjectId "$(groupId)" -RoleDefinitionName $roleName -Scope $scope -ErrorAction Stop
+                  Write-Host "✅ Successfully assigned '$roleName' to group $(groupId)"
+              } catch {
+                  Write-Warning "Failed to assign '$roleName': $_"
+              }
+          }
+        azurePowerShellVersion: 'LatestVersion'
