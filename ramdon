@@ -1,0 +1,11 @@
+<FileRules>
+  <FileRule Id="ID_ALLOW_SWT" FriendlyName="Allow SWT native libs">
+    <FilePathRule Path="C:\Users\*\ .swt\lib\win32\x86_64\*" />
+  </FileRule>
+</FileRules>
+
+
+
+ConvertFrom-CIPolicy `
+  -XmlFilePath C:\WDAC\Supplemental-Allow.xml `
+  -BinaryFilePath C:\WDAC\Org_WDAC_Publisher_Supplemental.p7b
