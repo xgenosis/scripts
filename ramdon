@@ -9,3 +9,11 @@
 ConvertFrom-CIPolicy `
   -XmlFilePath C:\WDAC\Supplemental-Allow.xml `
   -BinaryFilePath C:\WDAC\Org_WDAC_Publisher_Supplemental.p7b
+
+
+
+
+
+
+
+Code Integrity determined that a process (\Device\HarddiskVolume3\Program Files\Microsoft Office\root\Office16\WINWORD.EXE) attempted to load \Device\HarddiskVolume3\Windows\System32\spool\drivers\x64\3\RICOH_DRV\PCL6 Driver for Universal Print\dlz20250618050914\overlaywatermark.dll that did not meet the Enterprise signing level requirements or violated code integrity policy (Policy ID:{63d1178a-816a-4ab6-8ecd-127f2df0ce47}).
