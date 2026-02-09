@@ -1,202 +1,319 @@
-Microsoft Teams Federation Configuration
+IMPLEMENTATION STEPS
+STEP 1 — Microsoft Teams Admin Center
+Enable External Access (Federation)
 
-Scope: 1:1 chat and group chat only
-Model: External access (federation)
-Compliance alignment: ASD ISM, Microsoft best practice
-Last validated: 06 February 2026
+Portal:
+Teams admin center
+https://admin.teams.microsoft.com
 
-1. Purpose and Scope
+Navigation:
+Users → External access
 
-This document defines the configuration required to enable Microsoft Teams federation for text-based 1:1 and group chat only, while preventing higher-risk collaboration features such as file sharing, channels, meetings, and application access.
+Actions
 
-The configuration is designed to:
+Open Teams admin center
 
-Enable limited collaboration with external organisations
+Navigate to Users → External access
 
-Maintain control over information exchange
+Set External access to On
 
-Align with ASD ISM principles of least privilege and information containment
+Set Teams users can communicate with other Teams users to On
 
-Avoid introducing unmanaged identities into the tenant
+Set Skype users to Off
+Set Teams personal (consumer) accounts to Off
+Click Save
 
-2. Federation Model Overview
-What federation allows
+Expected Result
 
-1:1 chat between internal users and federated external users
+Federation is enabled only for organisational Teams tenants
 
-Group chat (multi-party chat)
+Consumer and Skype identities are blocked
 
-Optional presence visibility (risk-based)
+Evidence to Capture (ServiceNow)
 
-What federation explicitly does not allow
+Screenshot of External access page showing settings
 
-SharePoint or OneDrive access
+STEP 2 — Microsoft Teams Admin Center
+Restrict Federation to Approved Domains
 
-File transfer
+Portal:
+Teams admin center
 
-Channel participation
+Navigation:
+Users → External access
 
-Tenant resource access
+Actions
 
-External users signing into the tenant
+In External access, locate Domain restrictions
 
-Important: Federation is not guest access and does not create identities in the tenant.
+Select Allow only specific external domains
 
-3. Identity and Access Model (Corrected)
-Conditional Access – Not Applicable
-
-Conditional Access does not apply to Teams federation.
-
-Federated users:
-
-Authenticate entirely in their home Microsoft Entra ID tenant
-
-Do not sign in to the agency tenant
-
-Do not generate sign-in events evaluated by Conditional Access
-
-As a result:
-
-MFA, device compliance, location controls, and sign-in risk cannot be enforced by the agency on federated users
-
-This is expected platform behaviour, not a configuration gap
-
-Documented position (recommended wording)
-
-“Conditional Access is not technically applicable to Microsoft Teams federation, as federated users authenticate in their home tenant and do not sign in to the agency’s Microsoft Entra ID. Risk is mitigated through service-level controls within Microsoft Teams, information protection mechanisms, and audit monitoring.”
-
-4. Control Framework Used Instead of Conditional Access
-
-Because identity-based enforcement is unavailable, risk is managed through service-level and information-level controls, as outlined below.
-
-5. Microsoft Teams – External Access Configuration
-
-Location: Teams admin center → Users → External access
-
-Global settings
-Setting	Configuration
-External access	Enabled
-Teams users can communicate with other Teams users	Enabled
-Skype users	Disabled
-Teams personal accounts	Disabled
-Domain restrictions (strongly recommended)
-
-Allow only specific external domains
-
-Approved domains must be explicitly listed, for example:
+Add each approved external domain individually (example):
 
 partner1.gov.au
 partner2.org
 
 
-This aligns with ISM expectations to restrict external connectivity to known, approved entities.
+Confirm no wildcard domains are used
 
-6. Microsoft Teams – Messaging Policies (Primary Enforcement Point)
+Click Save
 
-A custom messaging policy must be created and assigned to users who require federation access.
+Expected Result
 
-Chat controls
-Setting	Value
-Chat	Enabled
-Private chat	Enabled
-Group chat	Enabled
-Read receipts	Optional
-Giphy	Disabled
-Stickers and memes	Disabled
-URL previews	Optional
-File and media controls (critical)
-Setting	Value
-Send files in chat	Disabled
-Inline images	Disabled
-Video messages	Disabled
-Voice messages	Disabled
+Federation is restricted to explicitly approved partner organisations
 
-This prevents:
+All other external domains are blocked by default
 
-SharePoint and OneDrive invocation
+Evidence to Capture
 
-Accidental or deliberate data transfer via chat
+Screenshot showing domain allow list
 
-Meetings (recommended restriction)
-Setting	Value
-Schedule meetings	Disabled
-Meet now	Disabled
-External meetings	Disabled unless explicitly required
-7. Microsoft Entra ID – External Collaboration Settings
+STEP 3 — Microsoft Teams Admin Center
+Create Chat-Only Messaging Policy
 
-Location: Entra admin center → External identities → External collaboration settings
+Portal:
+Teams admin center
 
-Guest access
-Setting	Configuration
-Guest access	Disabled (preferred)
-Guest permissions	Not applicable
+Navigation:
+Messaging policies
 
-Federation does not rely on guest access. Keeping this disabled avoids accidental expansion of access beyond chat.
+Actions
 
-8. Information Protection and Data Loss Prevention
-Sensitivity labels
+Navigate to Messaging policies
 
-Classified or sensitive labels must block external sharing
+Click Add
 
-Labels should apply to Teams content where supported
+Create a new policy with:
 
-Higher classifications should explicitly prohibit external communication
+Name: Federation-Chat-Only
 
-DLP policies
+Description: Chat-only policy for federated users
 
-DLP rules should monitor Teams chat for:
+Configure the following settings:
+
+Chat Settings
+
+Chat: On
+
+Private chat: On
+
+Group chat: On
+
+Read receipts: Optional (risk-based)
+
+Giphy: Off
+
+Stickers and memes: Off
+
+URL previews: Optional
+
+Click Save
+
+Expected Result
+
+Chat is enabled, but limited to text-based interactions
+
+Evidence to Capture
+
+Screenshot of policy settings
+
+STEP 4 — Microsoft Teams Admin Center
+Disable File, Media, and Rich Content in Chat
+
+Portal:
+Teams admin center
+
+Navigation:
+Messaging policies → Federation-Chat-Only
+
+Actions
+
+Edit the Federation-Chat-Only policy
+
+Set the following:
+
+File and Media Controls
+
+Send files in chat: Off
+
+Inline images: Off
+
+Video messages: Off
+
+Voice messages: Off
+
+Click Save
+
+Expected Result
+
+File transfer via SharePoint/OneDrive is prevented
+
+Media-based data leakage is blocked
+
+Evidence to Capture
+
+Screenshot showing file/media disabled
+
+STEP 5 — Microsoft Teams Admin Center
+Disable Meetings for Federated Users (Recommended)
+
+Portal:
+Teams admin center
+
+Navigation:
+Messaging policies → Federation-Chat-Only
+
+Actions
+
+In the same policy, locate Meetings
+
+Configure:
+
+Schedule meetings: Off
+
+Meet now: Off
+
+Participate in meetings with external users: Off (unless explicitly approved)
+
+Click Save
+
+Expected Result
+
+Federation is limited to chat only
+
+No meeting escalation path exists
+
+Evidence to Capture
+
+Screenshot of meeting settings
+
+STEP 6 — Microsoft Teams Admin Center
+Assign Messaging Policy to Users
+
+Portal:
+Teams admin center
+
+Navigation:
+Users → Manage users
+
+Actions
+
+Identify users requiring federation
+
+Select user(s)
+
+Assign Messaging policy = Federation-Chat-Only
+
+Confirm assignment
+
+Expected Result
+
+Only approved users can initiate federated chat
+
+Policy is not tenant-wide unless explicitly approved
+
+Evidence to Capture
+
+Screenshot of user policy assignment
+
+STEP 7 — Microsoft Entra Admin Center
+Confirm Guest Access Is Disabled
+
+Portal:
+Microsoft Entra admin center
+https://entra.microsoft.com
+
+Navigation:
+External identities → External collaboration settings
+
+Actions
+
+Open External collaboration settings
+
+Confirm Guest access is Disabled (preferred)
+
+Confirm no automatic guest invitations are enabled
+
+Save if changes are made
+
+Expected Result
+
+Federation operates independently of guest access
+
+No unintended SharePoint or Teams resource access
+
+Evidence to Capture
+
+Screenshot of guest access settings
+
+STEP 8 — Microsoft Purview
+Confirm Audit Logging Is Enabled
+
+Portal:
+Microsoft Purview portal
+https://compliance.microsoft.com
+
+Navigation:
+Audit
+
+Actions
+
+Confirm Unified Audit Log is enabled
+
+Verify logging for:
+
+Teams chat activity
+
+External access configuration changes
+
+Confirm retention meets agency standard (≥90 days)
+
+Expected Result
+
+Federated chat activity is auditable
+
+Administrative changes are logged
+
+Evidence to Capture
+
+Screenshot showing audit enabled / retention settings
+
+STEP 9 — Microsoft Purview
+Validate DLP Coverage for Teams Chat
+
+Portal:
+Microsoft Purview portal
+
+Navigation:
+Data loss prevention → Policies
+
+Actions
+
+Confirm DLP policies apply to Microsoft Teams chat
+
+Validate detection for:
 
 Sensitive personal information
 
-Protected or classified keywords
+Agency-defined sensitive keywords
 
-Operational or regulatory data
+Confirm actions:
 
-Actions may include:
+Block or warn
 
-Block message
+Audit event generated
 
-User warning
+Expected Result
 
-Audit and alerting
+Content-based controls compensate for lack of CA
 
-9. Logging, Monitoring, and Audit
-Relevant audit sources
-Area	Log Source
-Teams chat activity	Microsoft Purview Audit
-Federation events	Teams service logs
-DLP violations	Purview DLP
-Admin changes	Unified Audit Log
-Retention
+Policy violations are visible and actionable
 
-Minimum: 90 days
+Evidence to Capture
 
-Recommended: 180–365 days
+Screenshot of DLP policy scope
 
-10. ASD ISM Alignment (Corrected)
-ISM Principle	How Addressed
-Least privilege	Chat-only federation
-Information containment	No files, no media, no channels
-Access governance	Domain allow-listing
-Monitoring and detection	Audit logging and DLP
-Risk management	Explicit acceptance of identity enforcement limitations
+STEP 10 — Documentation and Acceptance (Mandatory)
 
-This approach aligns with ISM expectations where technical enforcement limits exist, provided compensating controls are applied and documented.
-
-11. Explicit Limitations (Must Be Acknowledged)
-
-The following limitations are inherent to the federation model:
-
-Text content can be copied by external users
-
-External tenant authentication strength cannot be enforced
-
-Device posture and compliance cannot be validated
-
-Controls apply only to outbound behaviour from the agency tenant
-
-These limitations are accepted as part of the federation risk profile.
-
-12. Governance Statement (Recommended for Approval Papers)
-
-“Microsoft Teams federation is implemented as a constrained collaboration mechanism limited to text-based 1:1 and group chat. Conditional Access is not applicable due to the federated authentication model. Risk is mitigated through strict domain allow-listing, chat-only messaging policies, disabled file and media transfer, information protection controls, and audit monitoring, consistent with ASD ISM principles.”
+Location:
+ServiceNow change record / risk register
